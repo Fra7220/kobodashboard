@@ -1,21 +1,14 @@
 import streamlit as st
 import pandas as pd
 import requests
-from dotenv import load_dotenv
-import os
 import plotly.express as px
+import numpy as np
 
 # ----------------------------
-# Load API credentials
+# API Credentials
 # ----------------------------
-load_dotenv()
-API_TOKEN = os.getenv("KOBO_TOKEN")
-ASSET_ID = os.getenv("ASSET_ID")
-
-if not API_TOKEN or not ASSET_ID:
-    st.error("API_TOKEN or ASSET_ID not set in your .env file.")
-    st.stop()
-
+API_TOKEN = "592431a1adec2581d39f13a616886aa08199d5bf"
+ASSET_ID = "awBaVbsGEPD6g2BiygM6ZA"
 API_URL = f"https://kf.kobotoolbox.org/api/v2/assets/{ASSET_ID}/data/?format=json"
 headers = {"Authorization": f"Token {API_TOKEN}"}
 
@@ -36,28 +29,40 @@ def fetch_data():
     return df
 
 # ----------------------------
-# STREAMLIT UI
+# Streamlit Page Config
 # ----------------------------
 st.set_page_config(page_title="Internship & Scholarships Dashboard",
                    layout="wide",
                    page_icon="📊")
 
-# Custom CSS for gray background
-st.markdown(
-    """
-    <style>
-    .stApp {
-        background-color: #f2f2f2;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-
+# Custom CSS for better layout and readability
 st.markdown("""
-<div style="text-align:center;">
-    <h1 style='color:#4B0082;'>📊 Internship & Scholarships Dashboard</h1>
-    <p style='font-size:16px; color:#555;'>Live data from KoboToolbox with interactive analysis and filters</p>
+<style>
+.stApp {background-color: #f0f0f0; font-family: 'Segoe UI', sans-serif;}
+h1 {color: #4B0082; font-weight: 700;}
+h2 {color: #4B0082; font-weight: 600;}
+.kpi-card {
+    border-radius: 12px;
+    padding: 25px 15px;
+    text-align: center;
+    color:white;
+    font-weight: bold;
+    transition: transform 0.2s;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+}
+.kpi-card:hover {transform: scale(1.05);}
+.plotly-graph-div {background-color: #f0f0f0 !important;}
+.section {margin-bottom: 30px;}
+</style>
+""", unsafe_allow_html=True)
+
+# ----------------------------
+# Header
+# ----------------------------
+st.markdown("""
+<div class="section" style="text-align:center;">
+    <h1>📊 Internship & Scholarships Dashboard</h1>
+    <p style='font-size:16px; color:#333;'>Live data from KoboToolbox with interactive analysis and filters</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -66,7 +71,9 @@ if st.button("🔄 Refresh Data"):
     fetch_data.clear()
     st.success("Cache cleared! Data will refresh automatically.")
 
+# ----------------------------
 # Fetch data
+# ----------------------------
 try:
     df = fetch_data()
 except Exception as e:
@@ -74,7 +81,7 @@ except Exception as e:
     st.stop()
 
 # ----------------------------
-# Relevant columns and data cleaning
+# Data Cleaning
 # ----------------------------
 columns_to_show = [
     "_submission_time",
@@ -86,10 +93,11 @@ columns_to_show = [
     "district_of_residence"
 ]
 
-filtered_df = df[[col for col in columns_to_show if col in df.columns]]
+filtered_df = df[[col for col in columns_to_show if col in df.columns]].copy()
 
 if "_submission_time" in filtered_df.columns:
     filtered_df["_submission_time"] = pd.to_datetime(filtered_df["_submission_time"])
+
 if "internship_exposure_count" in filtered_df.columns:
     filtered_df["internship_exposure_count"] = pd.to_numeric(filtered_df["internship_exposure_count"], errors="coerce")
 
@@ -110,12 +118,10 @@ def filter_column(col_name, df_to_filter):
             return df_to_filter[df_to_filter[col_name] == selected]
     return df_to_filter
 
-filtered_df = filter_column("institution_name", filtered_df)
-filtered_df = filter_column("field_of_study", filtered_df)
-filtered_df = filter_column("education_level", filtered_df)
-filtered_df = filter_column("district_of_residence", filtered_df)
+for col in ["institution_name", "field_of_study", "education_level", "district_of_residence"]:
+    filtered_df = filter_column(col, filtered_df)
 
-# Date range filter (inclusive)
+# Date filter
 if "_submission_time" in filtered_df.columns:
     min_date = filtered_df["_submission_time"].min().date()
     max_date = filtered_df["_submission_time"].max().date()
@@ -133,15 +139,12 @@ if "_submission_time" in filtered_df.columns:
             (filtered_df["_submission_time"] <= end)
         ]
 
-# ----------------------------
-# Handle empty data
-# ----------------------------
-if len(filtered_df) == 0:
-    st.warning("⚠️ No data matches the current filters. Please adjust the filters or date range.")
+if filtered_df.empty:
+    st.warning("⚠️ No data matches the current filters. Please adjust filters or date range.")
     st.stop()
 
 # ----------------------------
-# KPI Cards with hoverable panels
+# KPI Cards
 # ----------------------------
 st.subheader("📌 Key Metrics")
 kpi_col1, kpi_col2, kpi_col3, kpi_col4 = st.columns(4)
@@ -153,21 +156,13 @@ unique_districts = filtered_df["district_of_residence"].nunique() if "district_o
 
 def kpi_card(col, label, value, details_html="", bg_color="#6a0dad"):
     col.markdown(f"""
-    <div style="
-        background: linear-gradient(135deg, {bg_color}, #e0e0e0);
-        padding:20px;
-        border-radius:12px;
-        text-align:center;
-        color:white;
-        font-size:18px;
-        font-weight:bold;
-        transition: transform 0.2s;
-    " onmouseover="this.style.transform='scale(1.05)';" onmouseout="this.style.transform='scale(1)';">
+    <div class='kpi-card' style='background: {bg_color};'>
         {label}<br><span style='font-size:28px;'>{value}</span>
-        <div style='font-size:12px; color:#fff; margin-top:8px;'>{details_html}</div>
+        <div style='font-size:12px; color:#ffffff; margin-top:8px;'>{details_html}</div>
     </div>
     """, unsafe_allow_html=True)
 
+# Hoverable details
 top_inst_hover = "<br>".join(filtered_df["institution_name"].value_counts().nlargest(3).index)
 top_field_hover = "<br>".join(filtered_df["field_of_study"].value_counts().nlargest(3).index)
 intern_field_hover = "<br>".join(filtered_df.groupby("field_of_study")["internship_exposure_count"].sum().nlargest(3).index)
@@ -176,7 +171,19 @@ top_district_hover = "<br>".join(filtered_df["district_of_residence"].value_coun
 kpi_card(kpi_col1, "Total Submissions", total_submissions, f"Top Institutions:<br>{top_inst_hover}", "#4B0082")
 kpi_card(kpi_col2, "Institutions", unique_institutions, f"Top Fields:<br>{top_field_hover}", "#6a5acd")
 kpi_card(kpi_col3, "Avg Internships", round(avg_internships,2), f"Top Fields:<br>{intern_field_hover}", "#20b2aa")
-kpi_card(kpi_col4, "Districts Covered", unique_districts, f"Top Districts:<br>{top_district_hover}", "#ff7f50")
+kpi_card(kpi_col4, "Districts Covered", unique_districts, f"Top Districts:<br>{top_district_hover}", "#ff6347")  # brighter orange
+
+# ----------------------------
+# Pie Chart - Institutional Distribution
+# ----------------------------
+st.subheader("🏛 Institution Distribution")
+if "institution_name" in filtered_df.columns:
+    inst_counts = filtered_df["institution_name"].value_counts().reset_index()
+    inst_counts.columns = ["Institution", "Count"]
+    fig_inst_pie = px.pie(inst_counts, names="Institution", values="Count", hole=0.4,
+                          color_discrete_sequence=px.colors.qualitative.Safe)
+    fig_inst_pie.update_traces(textinfo='percent+label')
+    st.plotly_chart(fig_inst_pie, use_container_width=True)
 
 # ----------------------------
 # Top Insights Charts
@@ -185,9 +192,11 @@ st.subheader("📍 Top Insights")
 
 def plot_bar_chart(data, x, y, title, color_scale="Viridis", text_col=None):
     fig = px.bar(data, x=x, y=y, text=text_col if text_col else y,
-                 color=y, color_continuous_scale=color_scale)
+                 color=y, color_continuous_scale=color_scale, hover_data={x: True, y: True})
+    fig.update_traces(marker_line_color='rgb(0,0,0)', marker_line_width=1.5)  # add border for readability
     fig.update_layout(title=title, xaxis_title=x.replace("_"," ").title(), yaxis_title="Count",
-                      uniformtext_minsize=12, uniformtext_mode='hide', plot_bgcolor="#f2f2f2")
+                      uniformtext_minsize=12, uniformtext_mode='hide', plot_bgcolor="#f0f0f0",
+                      paper_bgcolor="#f0f0f0")
     st.plotly_chart(fig, use_container_width=True)
 
 # Top Institutions
@@ -210,7 +219,6 @@ plot_bar_chart(sch_counts, "Scholarship", "Count", "🏅 Scholarship Distributio
 # ----------------------------
 st.subheader("📋 Filtered Data Table")
 st.dataframe(filtered_df, use_container_width=True)
-
 st.download_button(
     label="💾 Download CSV",
     data=filtered_df.to_csv(index=False),
@@ -223,22 +231,20 @@ st.download_button(
 # ----------------------------
 st.subheader("📊 Detailed Analysis")
 
-# Submissions Over Time (by date only)
 filtered_df["submission_date"] = filtered_df["_submission_time"].dt.date
 date_counts = filtered_df.groupby("submission_date").size().reset_index(name="count")
 plot_bar_chart(date_counts, "submission_date", "count", "📈 Submissions Over Time (by Date)", "Viridis")
 
-# Students per Field
 field_counts = filtered_df.groupby("field_of_study").size().reset_index(name="count")
 plot_bar_chart(field_counts, "field_of_study", "count", "📝 Students per Field", "Cividis")
 
-# Internship Exposure per Field
 intern_field_df = filtered_df.groupby("field_of_study")["internship_exposure_count"].sum().reset_index()
 plot_bar_chart(intern_field_df, "field_of_study", "internship_exposure_count", "💼 Total Internship Exposure by Field", "Teal")
 
-# Scholarships vs Fields (Stacked)
 stacked_df = filtered_df.groupby(["field_of_study", "scholarship_frequency"]).size().reset_index(name="count")
 fig_stack = px.bar(stacked_df, x="field_of_study", y="count", color="scholarship_frequency",
-                   text="count", title="🏅 Scholarship Frequency by Field of Study")
-fig_stack.update_layout(xaxis_title="Field of Study", yaxis_title="Count", plot_bgcolor="#f2f2f2")
+                   text="count", title="🏅 Scholarship Frequency by Field of Study",
+                   color_discrete_sequence=px.colors.qualitative.Safe)
+fig_stack.update_layout(xaxis_title="Field of Study", yaxis_title="Count", plot_bgcolor="#f0f0f0",
+                        paper_bgcolor="#f0f0f0")
 st.plotly_chart(fig_stack, use_container_width=True)
