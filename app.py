@@ -8,7 +8,7 @@ import numpy as np
 # API Credentials
 # ----------------------------
 API_TOKEN = "592431a1adec2581d39f13a616886aa08199d5bf"
-ASSET_ID = "awBaVbsGEPD6g2BiygM6ZA"
+ASSET_ID = "aVZCZJwT5ZZDgjiawRE7YU"
 API_URL = f"https://kf.kobotoolbox.org/api/v2/assets/{ASSET_ID}/data/?format=json"
 headers = {"Authorization": f"Token {API_TOKEN}"}
 
