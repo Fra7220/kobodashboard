@@ -4,17 +4,17 @@ import requests
 import plotly.express as px
 import numpy as np
 
-# ----------------------------
+
 # API Credentials
-# ----------------------------
+
 API_TOKEN = "592431a1adec2581d39f13a616886aa08199d5bf"
 ASSET_ID = "aVZCZJwT5ZZDgjiawRE7YU"
 API_URL = f"https://kf.kobotoolbox.org/api/v2/assets/{ASSET_ID}/data/?format=json"
 headers = {"Authorization": f"Token {API_TOKEN}"}
 
-# ----------------------------
+
 # Fetch data with caching
-# ----------------------------
+
 @st.cache_data(ttl=60)
 def fetch_data():
     all_results = []
@@ -28,16 +28,15 @@ def fetch_data():
     df = pd.json_normalize(all_results)
     return df
 
-# ----------------------------
+
 # Streamlit Page Config
-# ----------------------------
+
 st.set_page_config(page_title="Internship & Scholarships Dashboard",
                    layout="wide",
                    page_icon="📊")
 
-# ----------------------------
 # Custom CSS
-# ----------------------------
+
 st.markdown("""
 <style>
 .stApp {background-color: #f7f7f7; font-family: 'Segoe UI', sans-serif;}
@@ -57,9 +56,9 @@ h2 {color: #4B0082; font-weight: 600;}
 </style>
 """, unsafe_allow_html=True)
 
-# ----------------------------
+
 # Header
-# ----------------------------
+
 st.markdown("""
 <div class="section" style="text-align:center;">
     <h1>📊 Internship & Scholarships Dashboard</h1>
@@ -72,18 +71,16 @@ if st.button("🔄 Refresh Data"):
     fetch_data.clear()
     st.success("Cache cleared! Data will refresh automatically.")
 
-# ----------------------------
-# Fetch data
-# ----------------------------
+# Data Loading
 try:
     df = fetch_data()
 except Exception as e:
     st.error(f"Failed to fetch data: {e}")
     st.stop()
 
-# ----------------------------
+
 # Data Cleaning
-# ----------------------------
+
 cols = [
     "_submission_time",
     "institution_name",
@@ -105,9 +102,9 @@ for c in ["institution_name", "field_of_study", "education_level", "district_of_
     if c in filtered_df.columns:
         filtered_df[c] = filtered_df[c].astype(str).str.strip().str.title()
 
-# ----------------------------
+
 # Sidebar Filters
-# ----------------------------
+
 st.sidebar.header("🔎 Filters")
 def filter_col(col_name, df_to_filter):
     if col_name in df_to_filter.columns:
@@ -145,22 +142,22 @@ if filtered_df.empty:
     st.warning("⚠️ No data matches the current filters. Please adjust filters or date range.")
     st.stop()
 
-# ----------------------------
+
 # Add group column
-# ----------------------------
+
 if time_group == "Weekly":
     filtered_df["time_group"] = filtered_df["_submission_time"].dt.to_period("W").apply(lambda r: r.start_time)
 else:
     filtered_df["time_group"] = filtered_df["_submission_time"].dt.to_period("M").apply(lambda r: r.start_time)
 
-# ----------------------------
+
 # Tabs Layout
-# ----------------------------
+
 tabs = st.tabs(["KPIs", "Charts", "Data Table"])
 
-# ----------------------------
+
 # KPIs Tab
-# ----------------------------
+
 with tabs[0]:
     st.subheader("📌 Key Metrics")
     k1, k2, k3, k4 = st.columns(4)
@@ -187,9 +184,9 @@ with tabs[0]:
     kpi_card(k3, "Total Internships", total_internships, f"Top Fields:<br>{top_field}", "#20b2aa")
     kpi_card(k4, "Districts Covered", unique_districts, f"Top Districts:<br>{top_dist}", "#ff6347")
 
-# ----------------------------
+
 # Data Table Tab
-# ----------------------------
+
 with tabs[2]:
     st.subheader("📋 Filtered Data Table")
     num_rows = st.selectbox("Select number of rows to display:", [10, 20, 50, 100], index=1)
@@ -219,9 +216,9 @@ with tabs[2]:
     fig_inst.update_traces(textinfo='percent+label')
     st.plotly_chart(fig_inst, use_container_width=True)
 
-# ----------------------------
+
 # Charts Tab
-# ----------------------------
+
 with tabs[1]:
     # Submissions over time
     st.subheader(f"📈 Submissions Over Time ({time_group})")
