@@ -99,7 +99,7 @@ if "_submission_time" in filtered_df.columns:
     filtered_df["_submission_time"] = pd.to_datetime(filtered_df["_submission_time"])
 
 if "internship_exposure_count" in filtered_df.columns:
-    filtered_df["internship_exposure_count"] = pd.to_numeric(filtered_df["internship_exposure_count"], errors="coerce")
+    filtered_df["internship_exposure_count"] = pd.to_numeric(filtered_df["internship_exposure_count"], errors="coerce").fillna(0)
 
 for c in ["institution_name", "field_of_study", "education_level", "district_of_residence"]:
     if c in filtered_df.columns:
@@ -167,7 +167,7 @@ with tabs[0]:
 
     total_submissions = len(filtered_df)
     unique_institutions = filtered_df["institution_name"].nunique() if "institution_name" in filtered_df.columns else 0
-    avg_internships = filtered_df["internship_exposure_count"].mean() if "internship_exposure_count" in filtered_df.columns else 0
+    total_internships = filtered_df["internship_exposure_count"].sum() if "internship_exposure_count" in filtered_df.columns else 0
     unique_districts = filtered_df["district_of_residence"].nunique() if "district_of_residence" in filtered_df.columns else 0
 
     def kpi_card(col, label, value, details="", bg="#6a0dad"):
@@ -180,13 +180,11 @@ with tabs[0]:
 
     top_inst = "<br>".join(filtered_df["institution_name"].value_counts().nlargest(3).index)
     top_field = "<br>".join(filtered_df["field_of_study"].value_counts().nlargest(3).index)
-    top_intern = "<br>".join(filtered_df.groupby("field_of_study")["internship_exposure_count"]
-                             .sum().nlargest(3).index)
     top_dist = "<br>".join(filtered_df["district_of_residence"].value_counts().nlargest(3).index)
 
     kpi_card(k1, "Total Submissions", total_submissions, f"Top Inst:<br>{top_inst}", "#4B0082")
     kpi_card(k2, "Institutions", unique_institutions, f"Top Fields:<br>{top_field}", "#6a5acd")
-    kpi_card(k3, "Avg Internships", round(avg_internships,2), f"Top Internships:<br>{top_intern}", "#20b2aa")
+    kpi_card(k3, "Total Internships", total_internships, f"Top Fields:<br>{top_field}", "#20b2aa")
     kpi_card(k4, "Districts Covered", unique_districts, f"Top Districts:<br>{top_dist}", "#ff6347")
 
 # ----------------------------
@@ -203,9 +201,7 @@ with tabs[2]:
         mime="text/csv"
     )
 
-    # ----------------------------
     # Pie Charts after Table
-    # ----------------------------
     st.subheader("🎓 Education Level Distribution")
     if "education_level" in filtered_df.columns:
         edu_counts = filtered_df["education_level"].value_counts().reset_index()
@@ -239,7 +235,7 @@ with tabs[1]:
     else:
         st.info("No submissions available in this period.")
 
-    # Students per field (no time axis)
+    # Students per field
     st.subheader("📝 Students per Field")
     field_counts = filtered_df["field_of_study"].value_counts().reset_index()
     field_counts.columns = ["Field of Study","Count"]
@@ -257,13 +253,14 @@ with tabs[1]:
         fig_intern_dist.update_layout(xaxis_title="District", yaxis_title="Total Internships")
         st.plotly_chart(fig_intern_dist, use_container_width=True)
 
-    # Scholarship Frequency by Institution
+    # Scholarship Frequency by Institution (stacked, summed)
     st.subheader("🏅 Scholarship Frequency by Institution")
     if "institution_name" in filtered_df.columns and "scholarship_frequency" in filtered_df.columns:
-        sch_inst_df = filtered_df.groupby(["institution_name","scholarship_frequency"]).size().reset_index(name="Count")
+        sch_inst_df = filtered_df.groupby(["institution_name","scholarship_frequency"])["internship_exposure_count"].sum().reset_index()
         if not sch_inst_df.empty:
-            fig_sch_inst = px.bar(sch_inst_df, x="institution_name", y="Count", color="scholarship_frequency",
-                                  text="Count", title="Scholarship Frequency by Institution",
-                                  color_discrete_sequence=px.colors.qualitative.Safe)
-            fig_sch_inst.update_layout(xaxis_title="Institution", yaxis_title="Count")
+            fig_sch_inst = px.bar(sch_inst_df, x="institution_name", y="internship_exposure_count",
+                                  color="scholarship_frequency", text="internship_exposure_count",
+                                  title="Scholarship Frequency by Institution",
+                                  color_discrete_sequence=px.colors.qualitative.Pastel)
+            fig_sch_inst.update_layout(xaxis_title="Institution", yaxis_title="Total Submissions/Count")
             st.plotly_chart(fig_sch_inst, use_container_width=True)
