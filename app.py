@@ -35,10 +35,12 @@ st.set_page_config(page_title="Internship & Scholarships Dashboard",
                    layout="wide",
                    page_icon="📊")
 
-# Custom CSS for better layout and readability
+# ----------------------------
+# Custom CSS
+# ----------------------------
 st.markdown("""
 <style>
-.stApp {background-color: #f0f0f0; font-family: 'Segoe UI', sans-serif;}
+.stApp {background-color: #f7f7f7; font-family: 'Segoe UI', sans-serif;}
 h1 {color: #4B0082; font-weight: 700;}
 h2 {color: #4B0082; font-weight: 600;}
 .kpi-card {
@@ -51,7 +53,6 @@ h2 {color: #4B0082; font-weight: 600;}
     box-shadow: 0 3px 10px rgba(0,0,0,0.1);
 }
 .kpi-card:hover {transform: scale(1.05);}
-.plotly-graph-div {background-color: #f0f0f0 !important;}
 .section {margin-bottom: 30px;}
 </style>
 """, unsafe_allow_html=True)
@@ -66,7 +67,7 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# Refresh button
+# Refresh Button
 if st.button("🔄 Refresh Data"):
     fetch_data.clear()
     st.success("Cache cleared! Data will refresh automatically.")
@@ -83,7 +84,7 @@ except Exception as e:
 # ----------------------------
 # Data Cleaning
 # ----------------------------
-columns_to_show = [
+cols = [
     "_submission_time",
     "institution_name",
     "field_of_study",
@@ -92,8 +93,7 @@ columns_to_show = [
     "internship_exposure_count",
     "district_of_residence"
 ]
-
-filtered_df = df[[col for col in columns_to_show if col in df.columns]].copy()
+filtered_df = df[[c for c in cols if c in df.columns]].copy()
 
 if "_submission_time" in filtered_df.columns:
     filtered_df["_submission_time"] = pd.to_datetime(filtered_df["_submission_time"])
@@ -101,27 +101,29 @@ if "_submission_time" in filtered_df.columns:
 if "internship_exposure_count" in filtered_df.columns:
     filtered_df["internship_exposure_count"] = pd.to_numeric(filtered_df["internship_exposure_count"], errors="coerce")
 
-for col in ["institution_name", "field_of_study", "education_level", "district_of_residence"]:
-    if col in filtered_df.columns:
-        filtered_df[col] = filtered_df[col].astype(str).str.strip().str.title()
+for c in ["institution_name", "field_of_study", "education_level", "district_of_residence"]:
+    if c in filtered_df.columns:
+        filtered_df[c] = filtered_df[c].astype(str).str.strip().str.title()
 
 # ----------------------------
 # Sidebar Filters
 # ----------------------------
 st.sidebar.header("🔎 Filters")
-
-def filter_column(col_name, df_to_filter):
+def filter_col(col_name, df_to_filter):
     if col_name in df_to_filter.columns:
-        options = ["All"] + sorted(df_to_filter[col_name].dropna().unique())
-        selected = st.sidebar.selectbox(f"🛠 {col_name.replace('_',' ').title()}", options)
-        if selected != "All":
-            return df_to_filter[df_to_filter[col_name] == selected]
+        opts = ["All"] + sorted(df_to_filter[col_name].dropna().unique())
+        sel = st.sidebar.selectbox(f"🛠 {col_name.replace('_',' ').title()}", opts)
+        if sel != "All":
+            return df_to_filter[df_to_filter[col_name] == sel]
     return df_to_filter
 
 for col in ["institution_name", "field_of_study", "education_level", "district_of_residence"]:
-    filtered_df = filter_column(col, filtered_df)
+    filtered_df = filter_col(col, filtered_df)
 
-# Date filter
+# Date filter & weekly/monthly toggle
+st.sidebar.header("🕒 Time Filter")
+time_group = st.sidebar.radio("Group data by:", ["Weekly", "Monthly"])
+
 if "_submission_time" in filtered_df.columns:
     min_date = filtered_df["_submission_time"].min().date()
     max_date = filtered_df["_submission_time"].max().date()
@@ -144,107 +146,124 @@ if filtered_df.empty:
     st.stop()
 
 # ----------------------------
-# KPI Cards
+# Add group column
 # ----------------------------
-st.subheader("📌 Key Metrics")
-kpi_col1, kpi_col2, kpi_col3, kpi_col4 = st.columns(4)
-
-total_submissions = len(filtered_df)
-unique_institutions = filtered_df["institution_name"].nunique() if "institution_name" in filtered_df.columns else 0
-avg_internships = filtered_df["internship_exposure_count"].mean() if "internship_exposure_count" in filtered_df.columns else 0
-unique_districts = filtered_df["district_of_residence"].nunique() if "district_of_residence" in filtered_df.columns else 0
-
-def kpi_card(col, label, value, details_html="", bg_color="#6a0dad"):
-    col.markdown(f"""
-    <div class='kpi-card' style='background: {bg_color};'>
-        {label}<br><span style='font-size:28px;'>{value}</span>
-        <div style='font-size:12px; color:#ffffff; margin-top:8px;'>{details_html}</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-# Hoverable details
-top_inst_hover = "<br>".join(filtered_df["institution_name"].value_counts().nlargest(3).index)
-top_field_hover = "<br>".join(filtered_df["field_of_study"].value_counts().nlargest(3).index)
-intern_field_hover = "<br>".join(filtered_df.groupby("field_of_study")["internship_exposure_count"].sum().nlargest(3).index)
-top_district_hover = "<br>".join(filtered_df["district_of_residence"].value_counts().nlargest(3).index)
-
-kpi_card(kpi_col1, "Total Submissions", total_submissions, f"Top Institutions:<br>{top_inst_hover}", "#4B0082")
-kpi_card(kpi_col2, "Institutions", unique_institutions, f"Top Fields:<br>{top_field_hover}", "#6a5acd")
-kpi_card(kpi_col3, "Avg Internships", round(avg_internships,2), f"Top Fields:<br>{intern_field_hover}", "#20b2aa")
-kpi_card(kpi_col4, "Districts Covered", unique_districts, f"Top Districts:<br>{top_district_hover}", "#ff6347")  # brighter orange
+if time_group == "Weekly":
+    filtered_df["time_group"] = filtered_df["_submission_time"].dt.to_period("W").apply(lambda r: r.start_time)
+else:
+    filtered_df["time_group"] = filtered_df["_submission_time"].dt.to_period("M").apply(lambda r: r.start_time)
 
 # ----------------------------
-# Pie Chart - Institutional Distribution
+# Tabs Layout
 # ----------------------------
-st.subheader("🏛 Institution Distribution")
-if "institution_name" in filtered_df.columns:
+tabs = st.tabs(["KPIs", "Charts", "Data Table"])
+
+# ----------------------------
+# KPIs Tab
+# ----------------------------
+with tabs[0]:
+    st.subheader("📌 Key Metrics")
+    k1, k2, k3, k4 = st.columns(4)
+
+    total_submissions = len(filtered_df)
+    unique_institutions = filtered_df["institution_name"].nunique() if "institution_name" in filtered_df.columns else 0
+    avg_internships = filtered_df["internship_exposure_count"].mean() if "internship_exposure_count" in filtered_df.columns else 0
+    unique_districts = filtered_df["district_of_residence"].nunique() if "district_of_residence" in filtered_df.columns else 0
+
+    def kpi_card(col, label, value, details="", bg="#6a0dad"):
+        col.markdown(f"""
+        <div class='kpi-card' style='background: {bg};'>
+            {label}<br><span style='font-size:28px;'>{value}</span>
+            <div style='font-size:12px; color:#fff; margin-top:8px;'>{details}</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    top_inst = "<br>".join(filtered_df["institution_name"].value_counts().nlargest(3).index)
+    top_field = "<br>".join(filtered_df["field_of_study"].value_counts().nlargest(3).index)
+    top_intern = "<br>".join(filtered_df.groupby("field_of_study")["internship_exposure_count"]
+                             .sum().nlargest(3).index)
+    top_dist = "<br>".join(filtered_df["district_of_residence"].value_counts().nlargest(3).index)
+
+    kpi_card(k1, "Total Submissions", total_submissions, f"Top Inst:<br>{top_inst}", "#4B0082")
+    kpi_card(k2, "Institutions", unique_institutions, f"Top Fields:<br>{top_field}", "#6a5acd")
+    kpi_card(k3, "Avg Internships", round(avg_internships,2), f"Top Internships:<br>{top_intern}", "#20b2aa")
+    kpi_card(k4, "Districts Covered", unique_districts, f"Top Districts:<br>{top_dist}", "#ff6347")
+
+# ----------------------------
+# Data Table Tab
+# ----------------------------
+with tabs[2]:
+    st.subheader("📋 Filtered Data Table")
+    num_rows = st.selectbox("Select number of rows to display:", [10, 20, 50, 100], index=1)
+    st.dataframe(filtered_df.head(num_rows), use_container_width=True)
+    st.download_button(
+        label="💾 Download CSV",
+        data=filtered_df.to_csv(index=False),
+        file_name="filtered_kobo_data.csv",
+        mime="text/csv"
+    )
+
+    # ----------------------------
+    # Pie Charts after Table
+    # ----------------------------
+    st.subheader("🎓 Education Level Distribution")
+    if "education_level" in filtered_df.columns:
+        edu_counts = filtered_df["education_level"].value_counts().reset_index()
+        edu_counts.columns = ["Education Level", "Count"]
+        fig_edu = px.pie(edu_counts, names="Education Level", values="Count", hole=0.4,
+                         color_discrete_sequence=px.colors.qualitative.Safe)
+        fig_edu.update_traces(textinfo='percent+label')
+        st.plotly_chart(fig_edu, use_container_width=True)
+
+    st.subheader("🏛 Institution Distribution")
     inst_counts = filtered_df["institution_name"].value_counts().reset_index()
-    inst_counts.columns = ["Institution", "Count"]
-    fig_inst_pie = px.pie(inst_counts, names="Institution", values="Count", hole=0.4,
-                          color_discrete_sequence=px.colors.qualitative.Safe)
-    fig_inst_pie.update_traces(textinfo='percent+label')
-    st.plotly_chart(fig_inst_pie, use_container_width=True)
+    inst_counts.columns = ["Institution","Count"]
+    fig_inst = px.pie(inst_counts, names="Institution", values="Count", hole=0.4,
+                      color_discrete_sequence=px.colors.qualitative.Safe)
+    fig_inst.update_traces(textinfo='percent+label')
+    st.plotly_chart(fig_inst, use_container_width=True)
 
 # ----------------------------
-# Top Insights Charts
+# Charts Tab
 # ----------------------------
-st.subheader("📍 Top Insights")
+with tabs[1]:
+    # Submissions over time
+    st.subheader(f"📈 Submissions Over Time ({time_group})")
+    time_counts = filtered_df.groupby("time_group").size().reset_index(name="Count")
+    if not time_counts.empty:
+        fig_time = px.bar(time_counts, x="time_group", y="Count", text="Count",
+                          title=f"Submissions Over Time ({time_group})",
+                          color="Count", color_continuous_scale="Viridis")
+        fig_time.update_layout(xaxis_title="Time", yaxis_title="Submissions")
+        st.plotly_chart(fig_time, use_container_width=True)
+    else:
+        st.info("No submissions available in this period.")
 
-def plot_bar_chart(data, x, y, title, color_scale="Viridis", text_col=None):
-    fig = px.bar(data, x=x, y=y, text=text_col if text_col else y,
-                 color=y, color_continuous_scale=color_scale, hover_data={x: True, y: True})
-    fig.update_traces(marker_line_color='rgb(0,0,0)', marker_line_width=1.5)  # add border for readability
-    fig.update_layout(title=title, xaxis_title=x.replace("_"," ").title(), yaxis_title="Count",
-                      uniformtext_minsize=12, uniformtext_mode='hide', plot_bgcolor="#f0f0f0",
-                      paper_bgcolor="#f0f0f0")
-    st.plotly_chart(fig, use_container_width=True)
+    # Students per field (no time axis)
+    st.subheader("📝 Students per Field")
+    field_counts = filtered_df["field_of_study"].value_counts().reset_index()
+    field_counts.columns = ["Field of Study","Count"]
+    fig_field = px.bar(field_counts, x="Field of Study", y="Count", text="Count",
+                       title="Students per Field", color="Count", color_continuous_scale="Purples")
+    st.plotly_chart(fig_field, use_container_width=True)
 
-# Top Institutions
-top_institutions = filtered_df["institution_name"].value_counts().nlargest(5).reset_index()
-top_institutions.columns = ["Institution", "Count"]
-plot_bar_chart(top_institutions, "Institution", "Count", "🏛 Top 5 Institutions", "Blues")
+    # Internship Exposure by District
+    st.subheader("💼 Total Internship Exposure by District")
+    if "district_of_residence" in filtered_df.columns and "internship_exposure_count" in filtered_df.columns:
+        intern_dist_df = filtered_df.groupby("district_of_residence")["internship_exposure_count"].sum().reset_index()
+        fig_intern_dist = px.bar(intern_dist_df, x="district_of_residence", y="internship_exposure_count",
+                                 text="internship_exposure_count", color="internship_exposure_count",
+                                 color_continuous_scale="Teal", title="Total Internship Exposure by District")
+        fig_intern_dist.update_layout(xaxis_title="District", yaxis_title="Total Internships")
+        st.plotly_chart(fig_intern_dist, use_container_width=True)
 
-# Top Fields
-top_fields = filtered_df["field_of_study"].value_counts().nlargest(5).reset_index()
-top_fields.columns = ["Field", "Count"]
-plot_bar_chart(top_fields, "Field", "Count", "📚 Top 5 Fields of Study", "Purples")
-
-# Scholarship Distribution
-sch_counts = filtered_df["scholarship_frequency"].value_counts().reset_index()
-sch_counts.columns = ["Scholarship", "Count"]
-plot_bar_chart(sch_counts, "Scholarship", "Count", "🏅 Scholarship Distribution", "Oranges")
-
-# ----------------------------
-# Filtered Table
-# ----------------------------
-st.subheader("📋 Filtered Data Table")
-st.dataframe(filtered_df, use_container_width=True)
-st.download_button(
-    label="💾 Download CSV",
-    data=filtered_df.to_csv(index=False),
-    file_name="filtered_kobo_data.csv",
-    mime="text/csv"
-)
-
-# ----------------------------
-# Detailed Charts
-# ----------------------------
-st.subheader("📊 Detailed Analysis")
-
-filtered_df["submission_date"] = filtered_df["_submission_time"].dt.date
-date_counts = filtered_df.groupby("submission_date").size().reset_index(name="count")
-plot_bar_chart(date_counts, "submission_date", "count", "📈 Submissions Over Time (by Date)", "Viridis")
-
-field_counts = filtered_df.groupby("field_of_study").size().reset_index(name="count")
-plot_bar_chart(field_counts, "field_of_study", "count", "📝 Students per Field", "Cividis")
-
-intern_field_df = filtered_df.groupby("field_of_study")["internship_exposure_count"].sum().reset_index()
-plot_bar_chart(intern_field_df, "field_of_study", "internship_exposure_count", "💼 Total Internship Exposure by Field", "Teal")
-
-stacked_df = filtered_df.groupby(["field_of_study", "scholarship_frequency"]).size().reset_index(name="count")
-fig_stack = px.bar(stacked_df, x="field_of_study", y="count", color="scholarship_frequency",
-                   text="count", title="🏅 Scholarship Frequency by Field of Study",
-                   color_discrete_sequence=px.colors.qualitative.Safe)
-fig_stack.update_layout(xaxis_title="Field of Study", yaxis_title="Count", plot_bgcolor="#f0f0f0",
-                        paper_bgcolor="#f0f0f0")
-st.plotly_chart(fig_stack, use_container_width=True)
+    # Scholarship Frequency by Institution
+    st.subheader("🏅 Scholarship Frequency by Institution")
+    if "institution_name" in filtered_df.columns and "scholarship_frequency" in filtered_df.columns:
+        sch_inst_df = filtered_df.groupby(["institution_name","scholarship_frequency"]).size().reset_index(name="Count")
+        if not sch_inst_df.empty:
+            fig_sch_inst = px.bar(sch_inst_df, x="institution_name", y="Count", color="scholarship_frequency",
+                                  text="Count", title="Scholarship Frequency by Institution",
+                                  color_discrete_sequence=px.colors.qualitative.Safe)
+            fig_sch_inst.update_layout(xaxis_title="Institution", yaxis_title="Count")
+            st.plotly_chart(fig_sch_inst, use_container_width=True)
