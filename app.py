@@ -253,14 +253,25 @@ with tabs[1]:
         fig_intern_dist.update_layout(xaxis_title="District", yaxis_title="Total Internships")
         st.plotly_chart(fig_intern_dist, use_container_width=True)
 
-    # Scholarship Frequency by Institution (stacked, summed)
-    st.subheader("🏅 Scholarship Frequency by Institution")
+    # Scholarship Frequency by Institution (sum of scholarship_frequency per institution)
+    st.subheader("🏅 Total Scholarship Frequency by Institution")
     if "institution_name" in filtered_df.columns and "scholarship_frequency" in filtered_df.columns:
-        sch_inst_df = filtered_df.groupby(["institution_name","scholarship_frequency"])["internship_exposure_count"].sum().reset_index()
-        if not sch_inst_df.empty:
-            fig_sch_inst = px.bar(sch_inst_df, x="institution_name", y="internship_exposure_count",
-                                  color="scholarship_frequency", text="internship_exposure_count",
-                                  title="Scholarship Frequency by Institution",
-                                  color_discrete_sequence=px.colors.qualitative.Pastel)
-            fig_sch_inst.update_layout(xaxis_title="Institution", yaxis_title="Total Submissions/Count")
-            st.plotly_chart(fig_sch_inst, use_container_width=True)
+        # Convert to numeric in case it's not
+        filtered_df["scholarship_frequency"] = pd.to_numeric(filtered_df["scholarship_frequency"], errors="coerce").fillna(0)
+
+        # Group by institution and sum the scholarship_frequency
+        sch_inst_total = filtered_df.groupby("institution_name")["scholarship_frequency"].sum().reset_index()
+        sch_inst_total = sch_inst_total.sort_values(by="scholarship_frequency", ascending=False)
+
+        if not sch_inst_total.empty:
+            fig_sch_inst_total = px.bar(
+                sch_inst_total,
+                x="institution_name",
+                y="scholarship_frequency",
+                text="scholarship_frequency",
+                title="Total Scholarship Frequency by Institution",
+                color="scholarship_frequency",
+                color_continuous_scale=px.colors.sequential.Viridis
+            )
+            fig_sch_inst_total.update_layout(xaxis_title="Institution", yaxis_title="Total Scholarship Frequency")
+            st.plotly_chart(fig_sch_inst_total, use_container_width=True)
