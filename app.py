@@ -219,44 +219,100 @@ with tabs[2]:
 
 # Charts Tab
 
+bg_gray = "#f0f0f0"
+orange_label = "#ff6600"
+
 with tabs[1]:
-    # Submissions over time
-    st.subheader(f"📈 Submissions Over Time ({time_group})")
-    time_counts = filtered_df.groupby("time_group").size().reset_index(name="Count")
-    if not time_counts.empty:
-        fig_time = px.bar(time_counts, x="time_group", y="Count", text="Count",
-                          title=f"Submissions Over Time ({time_group})",
-                          color="Count", color_continuous_scale="Viridis")
-        fig_time.update_layout(xaxis_title="Time", yaxis_title="Submissions")
-        st.plotly_chart(fig_time, use_container_width=True)
-    else:
-        st.info("No submissions available in this period.")
+    # Submissions over time (by date)
+    st.subheader("📈 Submissions Over Time (by Date)")
+    st.markdown(f"<div style='background-color: {bg_gray}; padding: 15px; border-radius: 10px;'>", unsafe_allow_html=True)
+    
+    if "_submission_time" in filtered_df.columns:
+        filtered_df["submission_date"] = filtered_df["_submission_time"].dt.date
+        date_counts = filtered_df.groupby("submission_date").size().reset_index(name="Count")
+        date_counts = date_counts.sort_values("submission_date")
+
+        if not date_counts.empty:
+            fig_date = px.bar(
+                date_counts,
+                x="submission_date",
+                y="Count",
+                text="Count",
+                title="Submissions Over Time (by Date)",
+                color="Count",
+                color_continuous_scale=px.colors.sequential.Viridis
+            )
+            fig_date.update_traces(textfont_color=orange_label)  # Bar numbers
+            fig_date.update_layout(
+                xaxis_title="Submission Date",
+                yaxis_title="Number of Submissions",
+                plot_bgcolor=bg_gray,
+                paper_bgcolor=bg_gray,
+                font_color=orange_label,
+                xaxis=dict(tickformat="%Y-%m-%d")
+            )
+            st.plotly_chart(fig_date, use_container_width=True)
+        else:
+            st.info("No submissions available in the selected date range.")
+
+    st.markdown("</div>", unsafe_allow_html=True)
 
     # Students per field
     st.subheader("📝 Students per Field")
+    st.markdown(f"<div style='background-color: {bg_gray}; padding: 15px; border-radius: 10px;'>", unsafe_allow_html=True)
+    
     field_counts = filtered_df["field_of_study"].value_counts().reset_index()
     field_counts.columns = ["Field of Study","Count"]
-    fig_field = px.bar(field_counts, x="Field of Study", y="Count", text="Count",
-                       title="Students per Field", color="Count", color_continuous_scale="Purples")
+    fig_field = px.bar(
+        field_counts, 
+        x="Field of Study", 
+        y="Count", 
+        text="Count",
+        title="Students per Field", 
+        color="Count", 
+        color_continuous_scale="Purples"
+    )
+    fig_field.update_traces(textfont_color=orange_label)
+    fig_field.update_layout(
+        plot_bgcolor=bg_gray,
+        paper_bgcolor=bg_gray,
+        font_color=orange_label
+    )
     st.plotly_chart(fig_field, use_container_width=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
     # Internship Exposure by District
     st.subheader("💼 Total Internship Exposure by District")
+    st.markdown(f"<div style='background-color: {bg_gray}; padding: 15px; border-radius: 10px;'>", unsafe_allow_html=True)
+    
     if "district_of_residence" in filtered_df.columns and "internship_exposure_count" in filtered_df.columns:
         intern_dist_df = filtered_df.groupby("district_of_residence")["internship_exposure_count"].sum().reset_index()
-        fig_intern_dist = px.bar(intern_dist_df, x="district_of_residence", y="internship_exposure_count",
-                                 text="internship_exposure_count", color="internship_exposure_count",
-                                 color_continuous_scale="Teal", title="Total Internship Exposure by District")
-        fig_intern_dist.update_layout(xaxis_title="District", yaxis_title="Total Internships")
+        fig_intern_dist = px.bar(
+            intern_dist_df, 
+            x="district_of_residence", 
+            y="internship_exposure_count",
+            text="internship_exposure_count", 
+            color="internship_exposure_count",
+            color_continuous_scale="Teal", 
+            title="Total Internship Exposure by District"
+        )
+        fig_intern_dist.update_traces(textfont_color=orange_label)
+        fig_intern_dist.update_layout(
+            xaxis_title="District", 
+            yaxis_title="Total Internships",
+            plot_bgcolor=bg_gray, 
+            paper_bgcolor=bg_gray,
+            font_color=orange_label
+        )
         st.plotly_chart(fig_intern_dist, use_container_width=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
-    # Scholarship Frequency by Institution (sum of scholarship_frequency per institution)
+    # Scholarship Frequency by Institution
     st.subheader("🏅 Total Scholarship Frequency by Institution")
+    st.markdown(f"<div style='background-color: {bg_gray}; padding: 15px; border-radius: 10px;'>", unsafe_allow_html=True)
+    
     if "institution_name" in filtered_df.columns and "scholarship_frequency" in filtered_df.columns:
-        # Convert to numeric in case it's not
         filtered_df["scholarship_frequency"] = pd.to_numeric(filtered_df["scholarship_frequency"], errors="coerce").fillna(0)
-
-        # Group by institution and sum the scholarship_frequency
         sch_inst_total = filtered_df.groupby("institution_name")["scholarship_frequency"].sum().reset_index()
         sch_inst_total = sch_inst_total.sort_values(by="scholarship_frequency", ascending=False)
 
@@ -270,5 +326,13 @@ with tabs[1]:
                 color="scholarship_frequency",
                 color_continuous_scale=px.colors.sequential.Viridis
             )
-            fig_sch_inst_total.update_layout(xaxis_title="Institution", yaxis_title="Total Scholarship Frequency")
+            fig_sch_inst_total.update_traces(textfont_color=orange_label)
+            fig_sch_inst_total.update_layout(
+                xaxis_title="Institution", 
+                yaxis_title="Total Scholarship Frequency",
+                plot_bgcolor=bg_gray, 
+                paper_bgcolor=bg_gray,
+                font_color=orange_label
+            )
             st.plotly_chart(fig_sch_inst_total, use_container_width=True)
+    st.markdown("</div>", unsafe_allow_html=True)
